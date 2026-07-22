@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Traffic Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&family=Lora:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EA;
+    --card:#FCFAF4;
+    --ink:#221F1A;
+    --muted:#7C7568;
+    --rule:#DED7C7;
+    --blue:#1D4E5F;
+    --mustard:#C29B2E;
+    --radius:3px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"DM Sans",system-ui,sans-serif;
+    font-size:15px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .wrap{max-width:1120px;margin:0 auto;padding:28px 22px 64px}
+
+  /* ---------- gate ---------- */
+  #gate{min-height:100vh;display:grid;place-items:center;padding:24px}
+  .gate-card{width:100%;max-width:360px}
+  .gate-card h1{font-family:Lora,Georgia,serif;font-weight:600;font-size:30px;margin:0 0 6px;letter-spacing:-.01em}
+  .gate-card p{color:var(--muted);margin:0 0 26px;font-size:14px}
+  label{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+  input{
+    width:100%;padding:10px 12px;margin-bottom:16px;
+    font-family:inherit;font-size:15px;color:var(--ink);
+    background:var(--card);border:1px solid var(--rule);border-radius:var(--radius);
+  }
+  input:focus,button:focus-visible,select:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+  button{
+    font-family:inherit;font-size:14px;cursor:pointer;
+    background:var(--blue);color:#FCFAF4;border:1px solid var(--blue);
+    padding:10px 18px;border-radius:var(--radius);
+  }
+  button:hover{background:#173F4D}
+  button.ghost{background:transparent;color:var(--muted);border-color:var(--rule)}
+  button.ghost:hover{background:var(--card);color:var(--ink)}
+  .err{color:#96341C;font-size:13px;margin:0 0 14px;min-height:18px}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;
+    justify-content:space-between;padding-bottom:16px;
+    border-bottom:2px solid var(--ink);
+  }
+  .brand{font-family:Lora,Georgia,serif;font-size:26px;font-weight:600;letter-spacing:-.01em}
+  .brand span{display:block;font-family:"DM Sans",sans-serif;font-size:11px;font-weight:500;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+  .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  select{
+    font-family:inherit;font-size:14px;color:var(--ink);cursor:pointer;
+    background:var(--card);border:1px solid var(--rule);border-radius:var(--radius);
+    padding:8px 10px;
+  }
+
+  /* ---------- totals ---------- */
+  .totals{
+    display:grid;grid-template-columns:repeat(4,1fr);
+    border-bottom:1px solid var(--rule);
+  }
+  .total{padding:18px 18px 20px;border-right:1px solid var(--rule)}
+  .total:last-child{border-right:0}
+  .total .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .total .v{font-size:34px;font-weight:500;line-height:1.15;margin-top:4px}
+  .total .n{font-size:12px;color:var(--muted);margin-top:2px}
+  .total.live .v{color:var(--mustard)}
+
+  /* ---------- ledger ---------- */
+  .ledger{padding:22px 0 8px;border-bottom:1px solid var(--rule)}
+  .ledger-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px}
+  .ledger-head h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:17px;margin:0}
+  #readout{font-size:13px;color:var(--muted);min-height:20px;text-align:right}
+  #readout b{color:var(--ink);font-weight:500}
+  #chart{width:100%;display:block}
+  #chart .bar{fill:var(--blue);opacity:.86;transition:opacity .12s}
+  #chart .bar:hover{opacity:1}
+  #chart .hot{fill:var(--mustard)}
+  #chart .rule{stroke:var(--rule);stroke-width:1}
+  #chart .base{stroke:var(--ink);stroke-width:1.5}
+  #chart text{font-family:"IBM Plex Mono",monospace;font-size:10px;fill:var(--muted)}
+  #chart .peak{font-family:"DM Sans",sans-serif;font-size:11px;fill:var(--mustard);font-style:italic}
+
+  /* ---------- tables ---------- */
+  .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:0 34px;margin-top:6px}
+  .panel{padding:22px 0 4px;border-bottom:1px solid var(--rule)}
+  .panel:last-child{border-bottom:0}
+  .panel h2{
+    font-family:"DM Sans",sans-serif;font-size:11px;font-weight:700;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 12px;
+  }
+  .row{
+    position:relative;display:flex;align-items:baseline;gap:10px;
+    padding:7px 8px;border-bottom:1px solid rgba(222,215,199,.6);
+  }
+  .row:last-child{border-bottom:0}
+  .row .fill{position:absolute;inset:0 auto 0 0;background:rgba(29,78,95,.09);border-radius:2px}
+  .row .rank{position:relative;font-size:11px;color:var(--muted);width:18px;flex:none;font-family:"IBM Plex Mono",monospace}
+  .row .lbl{position:relative;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+  .row .val{position:relative;font-size:13px;flex:none;font-family:"IBM Plex Mono",monospace}
+  .row .sub{position:relative;font-size:12px;color:var(--muted);flex:none;width:52px;text-align:right;font-family:"IBM Plex Mono",monospace}
+  .empty{color:var(--muted);font-size:14px;padding:10px 8px 16px}
+
+  footer{margin-top:26px;display:flex;justify-content:space-between;align-items:center;
+    gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+
+  .hidden{display:none !important}
+  @media (max-width:820px){
+    .totals{grid-template-columns:1fr 1fr}
+    .total:nth-child(2){border-right:0}
+    .total:nth-child(-n+2){border-bottom:1px solid var(--rule)}
+    .grid{grid-template-columns:1fr;gap:0}
+    .brand{font-size:22px}
+    .total .v{font-size:28px}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+
+<!-- ================= sign in ================= -->
+<section id="gate">
+  <div class="gate-card">
+    <h1>Traffic Ledger</h1>
+    <p>Sign in to read the numbers.</p>
+    <p class="err" id="gateErr"></p>
+    <label for="email">Email</label>
+    <input id="email" type="email" autocomplete="username">
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <button id="signIn" style="width:100%">Sign in</button>
+  </div>
+</section>
+
+<!-- ================= dashboard ================= -->
+<main id="app" class="wrap hidden">
+  <header>
+    <div class="brand">Traffic Ledger<span id="stamp">—</span></div>
+    <div class="controls">
+      <select id="site"><option value="">All sites</option></select>
+      <select id="range">
+        <option value="24h">Last 24 hours</option>
+        <option value="7d" selected>Last 7 days</option>
+        <option value="30d">Last 30 days</option>
+        <option value="90d">Last 90 days</option>
+      </select>
+      <button class="ghost" id="refresh">Refresh</button>
+      <button class="ghost" id="signOut">Sign out</button>
+    </div>
+  </header>
+
+  <section class="totals">
+    <div class="total"><div class="k">Views</div><div class="v num" id="tViews">—</div><div class="n" id="nViews">page loads</div></div>
+    <div class="total"><div class="k">Visits</div><div class="v num" id="tVisits">—</div><div class="n">separate sessions</div></div>
+    <div class="total"><div class="k">Views per visit</div><div class="v num" id="tPer">—</div><div class="n">how far they read</div></div>
+    <div class="total live"><div class="k">Reading now</div><div class="v num" id="tLive">—</div><div class="n">last 5 minutes</div></div>
+  </section>
+
+  <section class="ledger">
+    <div class="ledger-head">
+      <h2 id="chartTitle">Daily record</h2>
+      <div id="readout">Hover a column for its figures.</div>
+    </div>
+    <svg id="chart" height="230" role="img" aria-label="Traffic over time"></svg>
+  </section>
+
+  <div class="grid">
+    <div>
+      <section class="panel"><h2>Pages</h2><div id="pPages"></div></section>
+    </div>
+    <div>
+      <section class="panel" id="sitesPanel"><h2>Sites</h2><div id="pSites"></div></section>
+      <section class="panel"><h2>Came from</h2><div id="pRefs"></div></section>
+      <section class="panel"><h2>Device</h2><div id="pDevices"></div></section>
+      <section class="panel"><h2>Browser</h2><div id="pBrowsers"></div></section>
+    </div>
+  </div>
+
+  <footer>
+    <span id="status">—</span>
+    <span>No cookies. Sessions only, discarded when the tab closes.</span>
+  </footer>
+</main>
+
+<script>
+/* =====================================================================
+   Settings — fill these two in.
+   ===================================================================== */
+const SUPABASE_URL = "https://tvzkshimtvomdezdprzl.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_VcR7yM25FNnTSbwMMHrFaQ_i2TsPeJC";
+const TZ = "Asia/Tokyo";
+
+/* =====================================================================
+   Auth — plain fetch against Supabase, no SDK
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+let session = null;
+try { session = JSON.parse(localStorage.getItem("ptv_session") || "null"); } catch (e) {}
+
+function keepSession(d){
+  session = {
+    access_token: d.access_token,
+    refresh_token: d.refresh_token,
+    expires_at: Math.floor(Date.now()/1000) + (d.expires_in || 3600)
+  };
+  localStorage.setItem("ptv_session", JSON.stringify(session));
+}
+
+async function signIn(email, password){
+  const r = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
+    method:"POST",
+    headers:{ apikey: SUPABASE_ANON_KEY, "Content-Type":"application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  if (!r.ok) throw new Error("That email and password did not match.");
+  keepSession(await r.json());
+}
+
+function signOut(){
+  session = null;
+  localStorage.removeItem("ptv_session");
+  clearInterval(timer);
+  $("app").classList.add("hidden");
+  $("gate").classList.remove("hidden");
+}
+
+async function token(){
+  if (!session) throw new Error("Not signed in.");
+  if (session.expires_at - 60 < Date.now()/1000){
+    const r = await fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+      method:"POST",
+      headers:{ apikey: SUPABASE_ANON_KEY, "Content-Type":"application/json" },
+      body: JSON.stringify({ refresh_token: session.refresh_token })
+    });
+    if (!r.ok){ signOut(); throw new Error("Session ended. Sign in again."); }
+    keepSession(await r.json());
+  }
+  return session.access_token;
+}
+
+async function rpc(fn, args){
+  const t = await token();
+  const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
+    method:"POST",
+    headers:{
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: "Bearer " + t,
+      "Content-Type":"application/json"
+    },
+    body: JSON.stringify(args)
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/* =====================================================================
+   Ranges and formatting
+   ===================================================================== */
+const RANGES = {
+  "24h": { hours: 24,      bucket:"hour", title:"Hour by hour" },
+  "7d":  { hours: 24*7,    bucket:"day",  title:"Daily record" },
+  "30d": { hours: 24*30,   bucket:"day",  title:"Daily record" },
+  "90d": { hours: 24*90,   bucket:"day",  title:"Daily record" }
+};
+const n = v => (v ?? 0).toLocaleString("en-US");
+const pad = v => String(v).padStart(2,"0");
+const keyOf = (d,b) => b === "hour"
+  ? d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())+"T"+pad(d.getHours())
+  : d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+
+function tick(d, bucket, i, total){
+  if (bucket === "hour") return (i % 3 === 0) ? pad(d.getHours()) : "";
+  const step = total > 45 ? 7 : total > 20 ? 3 : 1;
+  return (i % step === 0) ? d.getDate() + "/" + (d.getMonth()+1) : "";
+}
+function longLabel(d, bucket){
+  return bucket === "hour"
+    ? d.toLocaleDateString(undefined,{month:"short",day:"numeric"}) + ", " + pad(d.getHours()) + ":00"
+    : d.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+}
+
+/* Fill in the buckets with no traffic so the shape stays honest. */
+function fillGaps(rows, bucket, hours){
+  const found = new Map();
+  rows.forEach(r => {
+    const d = new Date(String(r.bucket).replace(" ","T"));
+    found.set(keyOf(d, bucket), r);
+  });
+  const out = [];
+  const now = new Date();
+  const cur = new Date(now.getTime() - hours*3600e3);
+  if (bucket === "hour") cur.setMinutes(0,0,0); else cur.setHours(0,0,0,0);
+  let guard = 0;
+  while (cur <= now && guard++ < 500){
+    const k = keyOf(cur, bucket);
+    const hit = found.get(k);
+    out.push({ at: new Date(cur), views: hit ? +hit.views : 0, visits: hit ? +hit.visits : 0 });
+    if (bucket === "hour") cur.setHours(cur.getHours()+1); else cur.setDate(cur.getDate()+1);
+  }
+  return out;
+}
+
+/* =====================================================================
+   The ledger chart
+   ===================================================================== */
+let series = [], seriesBucket = "day";
+
+function niceTop(max){
+  if (max <= 4) return 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(max)));
+  return Math.ceil(max / (mag/2)) * (mag/2);
+}
+
+function drawChart(){
+  const svg = $("chart");
+  const W = svg.clientWidth || svg.parentNode.clientWidth || 800;
+  const H = 230, padL = 40, padR = 10, padT = 26, base = H - 26;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("width", W);
+
+  if (!series.length){ svg.innerHTML = ""; return; }
+
+  const max = Math.max(...series.map(d => d.views));
+  const top = niceTop(max);
+  const plotW = W - padL - padR;
+  const slot = plotW / series.length;
+  const barW = Math.max(2, Math.min(slot * 0.62, 34));
+  const y = v => base - (v / top) * (base - padT);
+
+  let g = "";
+  for (let i = 0; i <= 4; i++){
+    const v = top * i / 4, yy = y(v);
+    g += `<line class="rule" x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}"/>`;
+    g += `<text x="${padL-8}" y="${yy+3}" text-anchor="end">${Math.round(v)}</text>`;
+  }
+  g += `<line class="base" x1="${padL}" y1="${base}" x2="${W-padR}" y2="${base}"/>`;
+
+  const peak = series.reduce((a,b,i) => b.views > series[a].views ? i : a, 0);
+  series.forEach((d,i) => {
+    const cx = padL + slot*i + slot/2;
+    const h = d.views ? Math.max(2, base - y(d.views)) : 0;
+    if (h) g += `<rect class="bar${i===peak && max>0 ? " hot":""}" x="${(cx-barW/2).toFixed(1)}" y="${(base-h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" data-i="${i}"/>`;
+    const t = tick(d.at, seriesBucket, i, series.length);
+    if (t) g += `<text x="${cx.toFixed(1)}" y="${base+15}" text-anchor="middle">${t}</text>`;
+  });
+
+  if (max > 0){
+    const cx = padL + slot*peak + slot/2;
+    const anchor = cx > W - 120 ? "end" : cx < 120 ? "start" : "middle";
+    g += `<text class="peak" x="${cx.toFixed(1)}" y="${(y(series[peak].views)-8).toFixed(1)}" text-anchor="${anchor}">busiest — ${n(max)}</text>`;
+  }
+  svg.innerHTML = g;
+
+  svg.querySelectorAll(".bar").forEach(bar => {
+    bar.addEventListener("mouseenter", () => {
+      const d = series[+bar.dataset.i];
+      $("readout").innerHTML = longLabel(d.at, seriesBucket) +
+        " &nbsp;·&nbsp; <b>" + n(d.views) + "</b> views &nbsp;·&nbsp; <b>" + n(d.visits) + "</b> visits";
+    });
+  });
+  svg.addEventListener("mouseleave", () => {
+    $("readout").textContent = "Hover a column for its figures.";
+  });
+}
+
+/* =====================================================================
+   Tables
+   ===================================================================== */
+function drawTable(el, rows, emptyMsg){
+  if (!rows.length){ el.innerHTML = `<p class="empty">${emptyMsg}</p>`; return; }
+  const max = Math.max(...rows.map(r => +r.views));
+  el.innerHTML = rows.map((r,i) => {
+    const pct = max ? (+r.views / max * 100) : 0;
+    const label = String(r.label).replace(/[<>&]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]));
+    return `<div class="row">
+      <span class="fill" style="width:${pct.toFixed(1)}%"></span>
+      <span class="rank">${i+1}</span>
+      <span class="lbl" title="${label}">${label}</span>
+      <span class="val">${n(+r.views)}</span>
+      <span class="sub">${n(+r.visits)}</span>
+    </div>`;
+  }).join("");
+}
+
+/* =====================================================================
+   Load
+   ===================================================================== */
+let timer = null;
+
+async function load(){
+  const rk = $("range").value;
+  const R = RANGES[rk];
+  const site = $("site").value || null;
+  const from = new Date(Date.now() - R.hours*3600e3).toISOString();
+  const live = new Date(Date.now() - 5*60e3).toISOString();
+  seriesBucket = R.bucket;
+  $("chartTitle").textContent = R.title;
+  $("status").textContent = "Loading…";
+
+  try {
+    const [sum, ser, pages, refs, sites, devices, browsers, now] = await Promise.all([
+      rpc("stats_summary", { p_site: site, p_from: from }),
+      rpc("stats_series",  { p_site: site, p_from: from, p_bucket: R.bucket, p_tz: TZ }),
+      rpc("stats_top",     { p_site: site, p_from: from, p_dim:"path",     p_limit: 14 }),
+      rpc("stats_top",     { p_site: site, p_from: from, p_dim:"referrer", p_limit: 8 }),
+      rpc("stats_top",     { p_site: null, p_from: from, p_dim:"site",     p_limit: 10 }),
+      rpc("stats_top",     { p_site: site, p_from: from, p_dim:"device",   p_limit: 4 }),
+      rpc("stats_top",     { p_site: site, p_from: from, p_dim:"browser",  p_limit: 6 }),
+      rpc("stats_summary", { p_site: site, p_from: live })
+    ]);
+
+    const s = sum[0] || { views:0, visits:0 };
+    $("tViews").textContent  = n(+s.views);
+    $("tVisits").textContent = n(+s.visits);
+    $("tPer").textContent    = +s.visits ? (s.views / s.visits).toFixed(1) : "—";
+    $("tLive").textContent   = n(+(now[0]?.views || 0));
+
+    series = fillGaps(ser, R.bucket, R.hours);
+    drawChart();
+
+    drawTable($("pPages"),    pages,    "Nothing recorded yet. Add the tracker to a page and reload it.");
+    drawTable($("pRefs"),     refs,     "No visits yet.");
+    drawTable($("pSites"),    sites,    "No sites reporting yet.");
+    drawTable($("pDevices"),  devices,  "No visits yet.");
+    drawTable($("pBrowsers"), browsers, "No visits yet.");
+
+    // Keep the site list in sync without losing the current choice.
+    const sel = $("site"), keep = sel.value;
+    sel.innerHTML = '<option value="">All sites</option>' +
+      sites.map(r => `<option value="${r.label}">${r.label}</option>`).join("");
+    sel.value = keep;
+    $("sitesPanel").classList.toggle("hidden", !!site || sites.length < 2);
+
+    $("stamp").textContent = "updated " + new Date().toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+    $("status").textContent = "Refreshes every minute.";
+  } catch (err) {
+    $("status").textContent = "Could not load: " + err.message;
+  }
+}
+
+function start(){
+  $("gate").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  load();
+  clearInterval(timer);
+  timer = setInterval(load, 60000);
+}
+
+/* ---- wiring ---- */
+$("signIn").addEventListener("click", async () => {
+  $("gateErr").textContent = "";
+  const btn = $("signIn");
+  btn.disabled = true; btn.textContent = "Signing in…";
+  try {
+    await signIn($("email").value.trim(), $("pw").value);
+    $("pw").value = "";
+    start();
+  } catch (err) {
+    $("gateErr").textContent = err.message;
+  } finally {
+    btn.disabled = false; btn.textContent = "Sign in";
+  }
+});
+$("pw").addEventListener("keydown", e => { if (e.key === "Enter") $("signIn").click(); });
+$("email").addEventListener("keydown", e => { if (e.key === "Enter") $("pw").focus(); });
+$("signOut").addEventListener("click", signOut);
+$("refresh").addEventListener("click", load);
+$("site").addEventListener("change", load);
+$("range").addEventListener("change", load);
+
+let rt;
+window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(drawChart, 120); });
+
+if (session) start();
+</script>
+</body>
+</html>
